@@ -11,7 +11,7 @@
      - Construction Area
      - Greenway Area
      - Neighborhood Revitalization Area
-- Properties were acquired over the period 2009-2012
+- Properties were acquired over the period 2009-2014
      - Many properties acquired under condition there will be no future
        reconstruction (hence reducing future hazard exposure)
        
