@@ -1,6 +1,10 @@
+## NB: old code, needs updating
+
 library(data.table)
+## TODO: what functions in utils.r are used here?
 source("../utils.r")
 
+## TODO: update paths using "here"
 apath = "./Assessors/"
 afiles = list.files(apath, pattern="csv$", full.names=TRUE)
 
