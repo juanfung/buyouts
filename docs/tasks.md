@@ -63,7 +63,7 @@ Models
 1. Discrete choice! Flooding/eligibility is random assignment; agent chooses [Y,
    N], based on expected future value of home, moving costs, ...?
 2. Location decision? Stay in Cedar Rapids or not? Distance?
-3. Stopping problem?
+3. Stopping problem? (problem: buyout program ends 2015, data only thru 2016)
 4. Hedonic
         
 ## Analysis ##
@@ -87,7 +87,8 @@ For context, these are the main research questions I'm considering at the moment
       - Summary statistics: Summarizing {property value, damage} by {acquired,
         not acquired}, both pre- and post-buyouts (e.g., 2007 vs 2015)
       - Graphs!
-      - ...
 2. Econometrics
-      - ...
+     - Potential plan A: focus on (1) buyout decision and (2) post-buyout home
+        value | buyout decision (NB: no temporal aspect; simpler spec)
+      - https://floswald.github.io/ScPo-Labor/notes.html
 

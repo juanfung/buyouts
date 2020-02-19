@@ -11,8 +11,11 @@ library("data.table")
 library("sf")
 library("here")
 
+## flood map
 flooded = sf::read_sf(here::here("data", "raw", "floodmaps-2008", "FloodAffectedParcels.shp"))
 
+## assessor data
+assess = readRDS(file=here::here("data", "processed", "assessor", "linn_cr_all.rds"))
 
 ## 1. List of eligible properties with buyout status
 ## ## parsing failure!
@@ -50,7 +53,12 @@ acquired =
 
 
 ## 2. list of owners that accepted buyouts tracked annually
-pb = readRDS(here::here("data", "processed", "varsha", "postBuyoutData.rds")) %>%
+pb = readRDS(here::here("data", "processed", "varsha", "postBuyoutData.rds"))
+
+## TODO: Add {OwnerID, OwnerParcelID}
+pb = lapply(1:length(pb), function(j) pb[[j]]["OID"] = j) 
+
+pb = pb%>%
     dplyr::bind_rows() %>%
     dplyr::rename(Owner=DeedOwner)
 
@@ -62,10 +70,12 @@ readr::write_csv(pb, path=here::here("data", "processed", "varsha",
 ## the following tables should be reshaped (wide to long) and joined:
 
 ## owner names for each parcel
+## TODO: add {OwnerID, OwnerParcelID} column...
 nb_names = readr::read_csv(here::here("data", "processed", "varsha",
                                 "TrackingNotBoughtProperties.csv"),
                            col_types=cols(GPN=col_character()))
 
+## OR...add when reshaping
 nbn_long = nb_names %>%
     tidyr::pivot_longer(
                -c(GPN, Address),
@@ -99,10 +109,34 @@ nb_all =
     dplyr::select(-uid) %>%
     dplyr::left_join(nbv_long, by=c("GPN", "Address", "Year")) 
 
-## TODO: add column about buyout status (i.e., eligible, zone, not bought)
-## TODO: add similar column to pb (i.e., eligible, zone, bought, etc)
-##       - might be easiest to join with `ParcelsAcquiredMatched.*.csv`
-## TODO: row_bind with pb
+## TODO: combine acquired with owner and assessor data
+buyout_df = acquired %>%
+    dplyr::filter(bought != 0) %>%
+    dplyr::mutate(buyout_decision=case_when(bought == 1 ~ "Yes", bought == -1 ~ "No")) %>%
+    dplyr::select(-bought, -date, -ID.ACQ, -CombID) 
+
+buyout_yes = pb %>%
+    dplyr::filter(Year==2015) %>%
+    dplyr::select(-uid) %>%
+    dplyr::left_join(buyout_df,
+                     ## PROBLEM: names are not matching
+                     ## SOLUTION:
+                     ## In Varsha's original wide data, add a unique Owner ID
+                     ## Then match name in acquired to any name in pb/nb -> Owner ID
+                     ## TODO: add 2007/2008 assessor data to pb
+                     by=c("Owner"))
+    
+## TODO: add column about buyout status (i.e., eligible, zone, not bought, etc)
+##       - pb
+##       - nb_all
+##       - easiest to join with acquired
+## TODO: row_bind with (pb, nb_all)
+
+## Two-step plan:
+## 1. Simpler specification (buyout decision -> post-buyout value)
+##    - Data prep: join acquired to (pb, nb_all) but don't need all years
+## 2. More complex: (buyout decision -> where do people move?)
+## 
 
 ###############################################################
 ## the data.table way...
