@@ -6,10 +6,12 @@ library("tidyr")
 library("readr")
 library("readxl")
 library("dplyr")
+library("purrr")
 library("lubridate")
 library("data.table")
 library("sf")
 library("here")
+library("ggplot2")
 
 ## flood map
 flooded = sf::read_sf(here::here("data", "raw", "floodmaps-2008", "FloodAffectedParcels.shp"))
@@ -27,19 +29,21 @@ assess = readRDS(file=here::here("data", "processed", "assessor", "linn_cr_all.r
 eligible = fread(here::here("data", "processed", "varsha",
                       "ParcelAcquiredMatched_06-11.csv"),
                  colClasses=c(TAXPIN="character"))
-setnames(eligible, old="TAXPIN", new="GPN")
+
 
 eligible =
     eligible %>%
     tibble::as_tibble() %>%
     dplyr::rename(
-               Address=FULLADD,
+               GPN=TAXPIN,
+               buyout_address=FULLADD,
                buyout_area=buyout,
                ## buyout_status=bought,
                val_preflood=val107,
                val_appeal=AppealVal,
                val_buyout=ActVal,
-               Class=zone) %>%
+               buyout_class=zone,
+               buyout_owner=Owner) %>%
     dplyr::mutate(buyout_date=case_when(
                       date %in% "1111-11-11" ~ NA_character_,
                       TRUE ~ date),
@@ -51,13 +55,36 @@ eligible =
     dplyr::mutate(buyout_date=as.Date(buyout_date, format="%m/%d/%Y")) %>%
     dplyr::mutate(buyout_year=lubridate::year(buyout_date))
 
+assess_2007 = assess %>%
+    dplyr::filter(Year == 2007) %>%
+    dplyr::distinct(GPN, Address, .keep_all=TRUE)
+
+## Alternative: loop through rows of eligible and flag duplicate matches
+eligible_assess = eligible %>%
+    ## drop vacants
+    dplyr::filter(!(buyout_status %in% 'Vacant')) %>%
+    dplyr::nest_join(assess_2007,
+                     by=c('GPN'='GPN', 'buyout_address'='Address'))
+
+## TODO: clean up names
+eligible_sub = eligible %>%
+    dplyr::select(GPN, DeedOwner=Owner, Address, MGMTAREA, Class,
+                  buyout_area, bought, date, buyout_status, buyout_year)
+
+## accepted_df = acquired_all %>%
+##     dplyr::inner_join(eligible_sub)
+
 
 ## 2. list of owners that accepted buyouts tracked annually
 ## accepted = accepted buyout
 accepted_list = readRDS(here::here("data", "processed", "varsha", "postBuyoutData.rds"))
 
+## drop empty tibbles
+accepted_list = Filter(function(x) nrow(x) > 0, accepted_list)
+
 ## TODO: Add {OwnerID, OwnerParcelID}
-accepted_list = lapply(1:length(accepted_list), function(j) accepted_list[[j]]["OID"] = j) 
+accepted_list = lapply(1:length(accepted_list),
+                       function(j) accepted_list[[j]]["OID"] = j) 
 
 ## TODO: add pre-buyout assessor data
 accepted = accepted_list %>%
