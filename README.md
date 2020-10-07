@@ -6,8 +6,13 @@
 - Recovery included a federally-funded land acquisition program
      - Idea is to buyout homeowners in flood-prone areas (ie, near Cedar River)
      - Program is *voluntary*
-- Based on federal grant and hazard exposure, about 1500 properties identified
-  for buyout under one of three designations:
+     - Eligibility depends on federal grant (HMGP, CDBG), flood exposure, and 
+       benefit-cost ratio 
+       [Tate et al. (2015)](https://link.springer.com/article/10.1007/s11069-015-2060-8)
+         - **TODO**: Determine eligiility in the data (currently assuming flooded == 
+         eligible)
+- Based on federal grant and hazard exposure, about 1300 properties acquired
+  under one of three designations:
      - Construction Area
      - Greenway Area
      - Neighborhood Revitalization Area
