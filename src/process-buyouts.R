@@ -63,9 +63,9 @@ eligible_annual = flooded_2008 %>%
                by=c('GPN', 'Address'))
 
 ## save
-readr::write_csv(eligible_annual, file.path(path_processed, 'eligible_annnual.csv'))
+readr::write_csv(eligible_annual, file.path(path_processed, 'eligible_annual.csv'))
 
-saveRDS(eligible_annual, file.path(path_processed, 'eligible_annnual.rds'))
+saveRDS(eligible_annual, file.path(path_processed, 'eligible_annual.rds'))
 
 ##########################################################
 ## NB: Given ambiguity in matching the unmatched,
@@ -166,21 +166,38 @@ acquired_annual = acquired_annual %>%
     dplyr::mutate(buyout_status=1L)
 
 ## save
-readr::write_csv(acquired_annual, file.path(path_processed, 'acquired_annnual.csv'))
+readr::write_csv(acquired_annual, file.path(path_processed, 'acquired_annual.csv'))
 
-saveRDS(acquired_annual, file.path(path_processed, 'acquired_annnual.rds'))
+saveRDS(acquired_annual, file.path(path_processed, 'acquired_annual.rds'))
 
 ## 3. Combine eligible and acquired to get list of buyout status {1=Y, 0=N}
+## TODO: Add MGMTAREA to acquired_annual
 acquired_gpn = acquired_annual %>%
     dplyr::distinct(GPN) %>%
     dplyr::pull()
+
+eligible_acquired = eligible_annual %>%
+    dplyr::filter(GPN %in% acquired_gpn) %>%
+    dplyr::distinct(GPN, Address, MGMTAREA)
+
+acquired_annual = acquired_annual %>%
+    ## NB: 219 2ND AVE SE (Commercial)
+    ##     - No MGMTAREA
+    ##     - buyout_status == 1
+    dplyr::left_join(eligible_acquired, by='GPN')
 
 buyouts = eligible_annual %>%
     dplyr::filter(!(GPN %in% acquired_gpn)) %>%
     dplyr::bind_rows(acquired_annual) %>%
     dplyr::mutate(buyout_status=
                       case_when(is.na(buyout_status) ~ 0L,
-                                TRUE ~ buyout_status))
+                                TRUE ~ buyout_status),
+                  buyout_zone=
+                      case_when(grepl('^Construction', MGMTAREA) ~ 'Construction',
+                                grepl('^Greenway', MGMTAREA) ~ 'Greenway',
+                                grepl('^Neighborhood', MGMTAREA) ~ 'Neighborhood',
+                                TRUE ~ MGMTAREA)
+                  )
 
 ## save
 readr::write_csv(buyouts, file.path(path_processed, 'buyouts.csv'))
@@ -202,7 +219,7 @@ buyouts %>%
     dplyr::filter(Year == 2008) %>%
     dplyr::count(buyout_status)
 
-## only 2 properties in acquired \ eligible:
+## only 2 properties in {acquired} \ {eligible}:
 ## - the one fixed manually above
 ## - a commercial property 219 2ND AVE SE
 acquired_annual %>%
@@ -221,6 +238,7 @@ acquired_annual %>%
 
 ## 4. Filter (single-family) residential
 ## TODO: Decide if assessor class is only class to be trusted
+## TODO: Drop 'residential' if owner is ROCKWELL COLLINS
 class_residential = c('Residential', 'RESIDENTIAL')
 
 residential_gpn = buyouts %>%
@@ -238,15 +256,37 @@ residential_gpn = buyouts %>%
 buyouts_res = buyouts %>%
     dplyr::filter(GPN %in% residential_gpn)
 
+owners_df = buyouts_res %>%
+    dplyr::filter(!grepl('^ROCKWELL', DeedOwner)) %>%
+    dplyr::distinct(DeedOwner)
+
+owners_2008 = buyouts_res %>%
+    ## Only need to track eligible owners
+    ## + filter out obvious commercial owners
+    dplyr::filter(!grepl('^ROCKWELL', DeedOwner) & (Year == 2008)) %>%
+    ## key id: {DeedOwner}
+    ## dplyr::distinct(DeedOwner)
+    ## key id: {GPN x DeedOwner}
+    dplyr::distinct(GPN, DeedOwner)
+
+owners_accepted = buyouts_res %>%
+    dplyr::filter(!grepl('^ROCKWELL', buyout_owner, ignore.case=TRUE) &
+                  !is.na(buyout_owner)) %>%
+    ## NB: coerce toupper()
+    dplyr::distinct(buyout_owner)
+
 
 ## 5. Tokenize names
 ## TODO: Count unique owners, grouped by GPN
 buyouts_res %>%
     dplyr::group_by(GPN) %>%
     dplyr::summarise(no_owners=n_distinct(DeedOwner)) %>%
-    dplyr::count(no_owners)
+    dplyr::count(no_owners) %>%
+    dplyr::ungroup() 
 
-owner_names = buyouts_res %>%
-    ## dplyr::filter(Year == 2008) %>%
-    dplyr::distinct(DeedOwner) %>%
-    dplyr::pull()
+## Step 1: Normalize names (ie, remove symbols, abbrevs, etc)
+##      1b: Create lookup table containing tokenized names [2008]?
+##          - Based on "simplifying" names?
+##      1c: [TODO] Look into Record Linkage
+## Step 2: Compute distances between names
+## Step 3: Fuzzy matching
