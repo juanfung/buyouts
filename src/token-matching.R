@@ -21,7 +21,7 @@ assess = readRDS(file=file.path(path_processed, 'assessor/linn_cr_all.rds'))
 
 ## Load tokenized buyout data
 ## - Let's assume the data with tokens is called df_tokens
-df_tokens = readRDS(file.path(path_processed, 'df_tokens.rds'))
+df_tokens = readRDS(file.path(path_processed, 'Buyouts_Tokenized.rds'))
 
 ## buyouts = readRDS(file.path(path_processed, 'buyouts.rds'))
 
@@ -30,7 +30,7 @@ df_tokens = readRDS(file.path(path_processed, 'df_tokens.rds'))
 
 ## get each token is unique
 tokens = df_tokens %>%
-    dplyr::pull(id_token) %>%
+    dplyr::pull(OwnerToken) %>%
     unique()
 
 ## 176847 unique names
@@ -43,32 +43,20 @@ assess_names = assess %>%
 ## 2. Let's iterate through each token
 
 ## for testing
-df_tokens = data.frame(id_token=rep(1:2, 2),
-                       DeedOwner=c('Smith Bob', 'Jones Alice',
-                                   'Smith Bob', 'Jones Alice P'))
+n_sample = 10
 
-tokens = df_tokens %>%
-    dplyr::pull(id_token) %>%
-    unique()
-
-test_names = c('Smith Bob',
-               'Jones Alexa',
-               'Jones Alice P',
-               'Smith Robert',
-               'Smith Bob E',
-               'Jones Alice Partridge',
-               'Jones A P',
-               'Smith B')
+test_tokens = tokens[sample.int(n=n_sample)]
+test_names = assess_names[sample.int(n=n_sample*2)]
 
 ## Empty list of matches
 matched_names = list()
 
 ## Iterate through tokens and find approximate matches
 ## TODO: how to match when there are two owners?
-for (token in tokens) {
+for (token in test_tokens) {
     ## Get list of names associated with token
     token_names = df_tokens %>%
-        dplyr::filter(id_token == token) %>%
+        dplyr::filter(OwnerToken == token) %>%
         dplyr::distinct(DeedOwner) %>%
         dplyr::pull(DeedOwner)
     #####################################
@@ -86,10 +74,14 @@ for (token in tokens) {
     ##     - It has more metrics than Levenshetein; I've used it before, we can discuss 
     #####################################
     ## This returns a vector of potential matches
-    matched_names[[token]] = c(unlist(
+    matched = c(unlist(
         sapply(token_names,
                agrep,
                test_names,
                ## assess_names,
                value=TRUE)))
+    ## only save non-empty matches
+    if (!all(is.na(matched))) {
+        matched_names[[token]] = matched
+    }
 }
