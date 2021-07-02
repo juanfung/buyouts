@@ -42,14 +42,26 @@ assess_names = assess %>%
 ###############################
 ## 2. Let's iterate through each token
 
-## for testing
+## ******* For testing ******* ##
 n_sample = 10
 
 test_tokens = tokens[sample.int(n=n_sample)]
-test_names = assess_names[sample.int(n=n_sample*2)]
+
+test_names = df_tokens %>%
+    dplyr::filter(OwnerToken %in% test_tokens) %>%
+    dplyr::pull(DeedOwner)
+
+test_names = c(test_names, assess_names)[sample.int(n=n_sample*5)]
+
+## ***************************** ##
 
 ## Empty list of matches
-matched_names = list()
+matched_exact = list()
+matched_approx = list()
+
+## set cutoffs for approximate matching
+max_d = 0.5 ## for agrep
+cutoff = 5 ## for adist
 
 ## Iterate through tokens and find approximate matches
 ## TODO: how to match when there are two owners?
@@ -73,15 +85,34 @@ for (token in test_tokens) {
     ##     - We can try the package stringdist
     ##     - It has more metrics than Levenshetein; I've used it before, we can discuss 
     #####################################
-    ## This returns a vector of potential matches
-    matched = c(unlist(
-        sapply(token_names,
-               agrep,
-               test_names,
-               ## assess_names,
-               value=TRUE)))
+    ## This returns a vector of exact matches
+    #####################################
+    matched = c(unlist(sapply(token_names, grep, test_names, value=TRUE)))
     ## only save non-empty matches
     if (!all(is.na(matched))) {
-        matched_names[[token]] = matched
+        matched_exact[[token]] = matched
     }
+    #####################################
+    ## only consider names that were not matched exactly
+    test_names_sub = setdiff(test_names, matched)
+    #####################################
+    ## This returns a vector of approximate matches
+    #####################################
+    ## matched = c(unlist(sapply(token_names, agrep, test_names_sub, value=TRUE, max.distance=max_d)))
+    #####################################
+    ## Alternative: to filter by score, and save matches + score to data frame:
+    #####################################
+    matched = list()
+    for (tn in token_names) {
+        d = adist(d, test_names_sub)
+        matched[[tn]] = data.frame(token=token,
+                                   token_name=tn,
+                                   names=test_names_sub[d < cutoff],
+                                   dists=d[d<cutoff])
+    }
+    matched_approx[[token]] = dplyr::bind_rows(matched)
+    ## ## only save non-empty matches
+    ## if (!all(is.na(matched))) {
+    ##     matched_approx[[token]] = matched
+    ## }
 }
