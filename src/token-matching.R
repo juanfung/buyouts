@@ -104,7 +104,7 @@ for (token in test_tokens) {
     #####################################
     matched = list()
     for (tn in token_names) {
-        d = adist(d, test_names_sub)
+        d = adist(tn, test_names_sub)
         matched[[tn]] = data.frame(token=token,
                                    token_name=tn,
                                    names=test_names_sub[d < cutoff],
